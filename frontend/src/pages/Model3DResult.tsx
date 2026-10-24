@@ -1,8 +1,12 @@
+
 import { useEffect, useState } from "react";
+import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { generate3DModel } from "../services/api";
 import FinalModelViewer from "../viewer3d/FinalModelViewer";
 import { usePlotStore } from "../store/plotStore";
+
+const API_BASE_URL = "https://plot-ai-backend-pgls.onrender.com";
 
 export default function Model3DResult() {
   const navigate = useNavigate();
@@ -29,6 +33,13 @@ export default function Model3DResult() {
       return;
     }
 
+    if (model3D?.model_url) {
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
     const createModel = async () => {
       try {
         setLoading(true);
@@ -42,23 +53,46 @@ export default function Model3DResult() {
           roof_type: roofType,
         });
 
+        if (cancelled) return;
+
+        if (!result?.model_url) {
+          throw new Error(
+            "The backend response did not include a model URL."
+          );
+        }
+
         setModel3D(result);
       } catch (err) {
-        console.error(err);
+        if (cancelled) return;
 
-        setError(
-          "Unable to generate the 3D model. Make sure the FastAPI backend is running."
-        );
+        console.error("3D model generation failed:", err);
+
+        let message = "Unable to generate the 3D model.";
+
+        if (axios.isAxiosError(err)) {
+          const detail = err.response?.data?.detail;
+          message = typeof detail === "string"
+            ? detail
+            : err.response
+              ? `Backend returned HTTP ${err.response.status}.`
+              : "Cannot reach the backend. Check the Render service and try again.";
+        } else if (err instanceof Error) {
+          message = err.message;
+        }
+
+        setError(message);
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
-    if (!model3D) {
-      createModel();
-    } else {
-      setLoading(false);
-    }
+    createModel();
+
+    return () => {
+      cancelled = true;
+    };
   }, [
     plotInput,
     selectedBuildType,
@@ -78,6 +112,12 @@ export default function Model3DResult() {
     return null;
   }
 
+  const modelUrl = model3D?.model_url
+    ? /^https?:\/\//i.test(model3D.model_url)
+      ? model3D.model_url
+      : `${API_BASE_URL}${model3D.model_url.startsWith("/") ? "" : "/"}${model3D.model_url}`
+    : "";
+
   return (
     <section className="app-container py-10 sm:py-14">
       <div className="mb-10">
@@ -91,14 +131,23 @@ export default function Model3DResult() {
 
         <p className="mt-4 max-w-2xl text-base leading-7 text-muted sm:text-lg">
           Your building configuration has been converted
-          into a 3D model. Rotate and inspect the result
-          below.
+          into a 3D model. Rotate and inspect the result below.
         </p>
       </div>
 
       {error && (
         <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
+          <button
+            type="button"
+            onClick={() => {
+              setModel3D(null as never);
+              window.location.reload();
+            }}
+            className="ml-3 underline"
+          >
+            Try again
+          </button>
         </div>
       )}
 
@@ -108,7 +157,6 @@ export default function Model3DResult() {
             <p className="text-sm text-muted">
               Selected configuration
             </p>
-
             <p className="mt-1 text-lg font-semibold capitalize">
               {selectedBuildType} · {floors}{" "}
               {floors === 1 ? "floor" : "floors"}
@@ -119,7 +167,6 @@ export default function Model3DResult() {
             <span className="rounded-full bg-canvas px-3 py-1.5 text-xs font-medium capitalize">
               {roofType} roof
             </span>
-
             <span className="rounded-full bg-canvas px-3 py-1.5 text-xs font-medium">
               {plotInput.length_ft} × {plotInput.width_ft} ft
             </span>
@@ -131,26 +178,24 @@ export default function Model3DResult() {
             <div className="flex h-full items-center justify-center">
               <div className="text-center">
                 <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-border border-t-accent" />
-
                 <p className="font-medium">
                   Generating your 3D model...
                 </p>
-
                 <p className="mt-2 text-sm text-muted">
                   This may take a moment.
                 </p>
               </div>
             </div>
-          ) : model3D?.model_url ? (
+          ) : modelUrl ? (
             <FinalModelViewer
-            url={`http://localhost:8000${model3D.model_url}`}
-            lengthFt={plotInput.length_ft}
-            widthFt={plotInput.width_ft}
-/>
+              url={modelUrl}
+              lengthFt={plotInput.length_ft}
+              widthFt={plotInput.width_ft}
+            />
           ) : (
-            <div className="flex h-full items-center justify-center">
-              <p className="text-sm text-muted">
-                No 3D model was returned by the server.
+            <div className="flex h-full items-center justify-center px-6">
+              <p className="text-center text-sm text-muted">
+                {error || "No 3D model was returned by the server."}
               </p>
             </div>
           )}
@@ -160,23 +205,15 @@ export default function Model3DResult() {
           <div className="border-t border-border p-6">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="rounded-xl bg-canvas p-4">
-                <p className="text-xs text-muted">
-                  Template used
-                </p>
-
+                <p className="text-xs text-muted">Template used</p>
                 <p className="mt-1 font-medium">
                   {model3D.template_used || "Default"}
                 </p>
               </div>
 
               <div className="rounded-xl bg-canvas p-4">
-                <p className="text-xs text-muted">
-                  Model format
-                </p>
-
-                <p className="mt-1 font-medium">
-                  GLB / glTF
-                </p>
+                <p className="text-xs text-muted">Model format</p>
+                <p className="mt-1 font-medium">GLB / glTF</p>
               </div>
             </div>
           </div>

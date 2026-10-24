@@ -47,9 +47,10 @@ app.add_middleware(
 
 
 # Create and serve the generated 3D models directory.
-generated_models_dir = Path("generated_models")
-generated_models_dir.mkdir(parents=True, exist_ok=True)
+BASE_DIR = Path(__file__).resolve().parent.parent
 
+generated_models_dir = BASE_DIR / "generated_models"
+generated_models_dir.mkdir(parents=True, exist_ok=True)
 app.mount(
     "/generated-models",
     StaticFiles(directory=str(generated_models_dir)),

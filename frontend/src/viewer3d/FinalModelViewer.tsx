@@ -7,7 +7,7 @@ import {
   Bounds,
 } from "@react-three/drei";
 
-const API_BASE_URL = "http://localhost:8000";
+const API_BASE_URL = "https://plot-ai-backend-pgls.onrender.com";
 
 interface FinalModelViewerProps {
   url: string;
