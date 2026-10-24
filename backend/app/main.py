@@ -1,4 +1,3 @@
-
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -32,12 +31,13 @@ app = FastAPI(
 )
 
 
-# CORS: allow local development and the deployed Vercel frontend.
+# CORS: allow local development and the production Vercel frontend.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "https://plot-ai-lilac.vercel.app",
         "https://plot-33bhghqqf-tanishqmore.vercel.app",
     ],
     allow_credentials=True,
@@ -46,7 +46,7 @@ app.add_middleware(
 )
 
 
-# Serve generated 3D models if the directory exists.
+# Create and serve the generated 3D models directory.
 generated_models_dir = Path("generated_models")
 generated_models_dir.mkdir(parents=True, exist_ok=True)
 
