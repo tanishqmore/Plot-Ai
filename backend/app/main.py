@@ -1,4 +1,6 @@
 
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -12,12 +14,6 @@ from app.api import (
 )
 
 
-# ============================================================
-# PLOT AI API — PROJECT INFORMATION
-# Built by Tanishq More
-# LinkedIn: https://www.linkedin.com/in/tanishq-more-863606344/
-# ============================================================
-
 app = FastAPI(
     title="PlotAI API",
     description="""
@@ -26,9 +22,7 @@ app = FastAPI(
     and 3D model generation.
 
     Developer: Tanishq More
-
-    LinkedIn Profile:
-    https://www.linkedin.com/in/tanishq-more-863606344/
+    LinkedIn: https://www.linkedin.com/in/tanishq-more-863606344/
     """,
     version="1.0.0",
     contact={
@@ -38,15 +32,13 @@ app = FastAPI(
 )
 
 
-# ============================================================
-# CORS CONFIGURATION
-# ============================================================
-
+# CORS: allow local development and the deployed Vercel frontend.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "https://plot-33bhghqqf-tanishqmore.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -54,21 +46,18 @@ app.add_middleware(
 )
 
 
-# ============================================================
-# STATIC 3D MODELS
-# ============================================================
+# Serve generated 3D models if the directory exists.
+generated_models_dir = Path("generated_models")
+generated_models_dir.mkdir(parents=True, exist_ok=True)
 
 app.mount(
     "/generated-models",
-    StaticFiles(directory="generated_models"),
+    StaticFiles(directory=str(generated_models_dir)),
     name="generated-models",
 )
 
 
-# ============================================================
-# API ROUTES
-# ============================================================
-
+# API routes
 app.include_router(
     auth.router,
     prefix="/api/auth",
@@ -100,10 +89,7 @@ app.include_router(
 )
 
 
-# ============================================================
-# HEALTH CHECK
-# ============================================================
-
+# Health check
 @app.get("/health", tags=["health"])
 def health_check():
     return {
@@ -111,4 +97,14 @@ def health_check():
         "project": "PlotAI",
         "developer": "Tanishq More",
         "linkedin": "https://www.linkedin.com/in/tanishq-more-863606344/",
+    }
+
+
+# API root
+@app.get("/", tags=["health"])
+def root():
+    return {
+        "status": "ok",
+        "message": "PlotAI API is running",
+        "docs": "/docs",
     }
