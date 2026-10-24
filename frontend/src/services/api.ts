@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:8000/api",
+  baseURL: "https://plot-ai-backend-pgls.onrender.com/api",
 });
 
 api.interceptors.request.use((config) => {
