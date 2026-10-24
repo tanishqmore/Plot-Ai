@@ -16,8 +16,7 @@ torch==2.4.1
 torchvision==0.19.1
 ultralytics==8.3.0        # YOLOv8/v9 for obstruction detection
 segment-anything==1.0
-opencv-python-headless==4.10.0.84
 scikit-learn==1.5.2
 xgboost==2.1.1
-numpy==2.1.1
+numpy==1.26.4
 trimesh==4.4.9            # for building/exporting 3D meshes (.glb)
