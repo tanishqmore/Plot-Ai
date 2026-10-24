@@ -1,9 +1,13 @@
+
 import { ChangeEvent, FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
+
 import {
   analyzeManualPlot,
   analyzePlotImage,
 } from "../services/api";
+
 import {
   PlotShape,
   RoadFacingSide,
@@ -53,6 +57,8 @@ export default function UploadPlot() {
     event.preventDefault();
     setError("");
 
+    if (loading) return;
+
     try {
       setLoading(true);
 
@@ -82,10 +88,13 @@ export default function UploadPlot() {
       const lengthFt = Number(length);
       const widthFt = Number(width);
 
-      if (!lengthFt || !widthFt || lengthFt <= 0 || widthFt <= 0) {
-        setError(
-          "Please enter valid positive plot dimensions."
-        );
+      if (
+        !Number.isFinite(lengthFt) ||
+        !Number.isFinite(widthFt) ||
+        lengthFt <= 0 ||
+        widthFt <= 0
+      ) {
+        setError("Please enter valid positive plot dimensions.");
         return;
       }
 
@@ -107,12 +116,45 @@ export default function UploadPlot() {
       setCurrentStep(2);
 
       navigate("/build");
-    } catch (err) {
-      console.error(err);
+    } catch (err: unknown) {
+      console.error("Plot analysis failed:", err);
 
-      setError(
-        "Unable to analyze the plot. Make sure the FastAPI backend is running."
-      );
+      if (axios.isAxiosError(err)) {
+        const status = err.response?.status;
+        const responseData = err.response?.data;
+
+        const detail =
+          responseData &&
+          typeof responseData === "object" &&
+          "detail" in responseData
+            ? responseData.detail
+            : undefined;
+
+        let message: string;
+
+        if (status) {
+          message =
+            typeof detail === "string"
+              ? detail
+              : detail !== undefined
+                ? JSON.stringify(detail)
+                : typeof responseData === "string"
+                  ? responseData
+                  : err.message;
+
+          setError(`Plot analysis failed (${status}): ${message}`);
+        } else {
+          setError(
+            `Could not receive a response from the API: ${err.message}. Check your internet connection and browser console.`
+          );
+        }
+      } else if (err instanceof Error) {
+        setError(`Plot analysis failed: ${err.message}`);
+      } else {
+        setError(
+          "An unexpected error occurred while analyzing the plot."
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -148,7 +190,10 @@ export default function UploadPlot() {
                 <div className="mt-3 grid grid-cols-2 rounded-xl bg-gray-100 p-1">
                   <button
                     type="button"
-                    onClick={() => setMode("manual")}
+                    onClick={() => {
+                      setMode("manual");
+                      setError("");
+                    }}
                     className={[
                       "rounded-lg px-4 py-3 text-sm font-medium transition",
                       mode === "manual"
@@ -161,7 +206,10 @@ export default function UploadPlot() {
 
                   <button
                     type="button"
-                    onClick={() => setMode("image")}
+                    onClick={() => {
+                      setMode("image");
+                      setError("");
+                    }}
                     className={[
                       "rounded-lg px-4 py-3 text-sm font-medium transition",
                       mode === "image"
@@ -220,11 +268,10 @@ export default function UploadPlot() {
                         type="number"
                         min="1"
                         step="0.1"
+                        required
                         placeholder="e.g. 60"
                         value={length}
-                        onChange={(e) =>
-                          setLength(e.target.value)
-                        }
+                        onChange={(e) => setLength(e.target.value)}
                       />
                     </div>
 
@@ -238,11 +285,10 @@ export default function UploadPlot() {
                         type="number"
                         min="1"
                         step="0.1"
+                        required
                         placeholder="e.g. 40"
                         value={width}
-                        onChange={(e) =>
-                          setWidth(e.target.value)
-                        }
+                        onChange={(e) => setWidth(e.target.value)}
                       />
                     </div>
                   </div>
@@ -304,9 +350,7 @@ export default function UploadPlot() {
                     </div>
 
                     <p className="font-medium text-ink">
-                      {file
-                        ? file.name
-                        : "Choose a plot image"}
+                      {file ? file.name : "Choose a plot image"}
                     </p>
 
                     <p className="mt-2 text-sm text-muted">
@@ -324,7 +368,10 @@ export default function UploadPlot() {
               )}
 
               {error && (
-                <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <div
+                  role="alert"
+                  className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                >
                   {error}
                 </div>
               )}
@@ -334,9 +381,7 @@ export default function UploadPlot() {
                 disabled={loading}
                 className="primary-button mt-7 w-full"
               >
-                {loading
-                  ? "Analyzing plot..."
-                  : "Analyze Plot"}
+                {loading ? "Analyzing plot..." : "Analyze Plot"}
               </button>
             </form>
           </div>
